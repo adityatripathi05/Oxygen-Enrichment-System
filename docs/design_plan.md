@@ -1,8 +1,8 @@
-# Oxygen Enrichment Control System Design_v2.0
+# Oxygen Enrichment Control System Design_v2.1
 ## Architecture Plan
 
 ## Table of Contents
-- [Oxygen Enrichment Control System Design\_v2.0](#oxygen-enrichment-control-system-design_v20)
+- [Oxygen Enrichment Control System Design\_v2.1](#oxygen-enrichment-control-system-design_v21)
   - [Architecture Plan](#architecture-plan)
   - [Table of Contents](#table-of-contents)
   - [1. System Overview](#1-system-overview)
@@ -204,20 +204,21 @@ graph TD
 
 #### Zone Raspberry Pi Software
 - **Language**: Python
-- **Frameworks**: Flask
 - **Key Functions**:
   - BLE data reception (sensor-based zones)
   - Local python script collecting sensor data via BLE and sending to central via API request logic
-  - Time-based control logic (timer-based zones)
-  - Local flask app to get MAC address 
-  - UI rendering for touchscreen (including boost mode button)
-  - Guest interface for zone activation/deactivation
-  - Zone assignment interface for technician
-  - Communication with central RPi
-  - Ethernet relay control
   - ESP32 gpio pin control via BLE
   - Local logging and monitoring
-  - Scheduled operation management
+  - Local python script to get MAC address and open chromium browser in kiosk mode
+  - Central Raspberry Pi Software accessed through broswer and support 
+    - UI rendering for touchscreen (including boost mode button)
+    - Guest interface for zone activation/deactivation
+    - Guest interface for boost mode control
+    - Guest interface to control target altitude equivalency
+    - Zone assignment interface for technician
+    - Communication with central RPi
+    - Ethernet relay control
+    - Scheduled operation management
 
 #### Central Raspberry Pi Software
 - **Language**: Python
