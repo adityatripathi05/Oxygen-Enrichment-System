@@ -1,8 +1,8 @@
-# Oxygen Enrichment Control System Design_v1.0
+# Oxygen Enrichment Control System Design_v2.0
 ## Architecture Plan
 
 ## Table of Contents
-- [Oxygen Enrichment Control System Design\_v1.0](#oxygen-enrichment-control-system-design_v10)
+- [Oxygen Enrichment Control System Design\_v2.0](#oxygen-enrichment-control-system-design_v20)
   - [Architecture Plan](#architecture-plan)
   - [Table of Contents](#table-of-contents)
   - [1. System Overview](#1-system-overview)
@@ -35,11 +35,20 @@
     - [5.2 Control System Flow](#52-control-system-flow)
     - [5.3 User Interaction Flow](#53-user-interaction-flow)
     - [5.4 Time-based Control Flow](#54-time-based-control-flow)
-  - [6. Processing and Management Plan](#6-processing-and-management-plan)
-    - [6.1 Processing Optimization](#61-processing-optimization)
-    - [6.2 Data Management Strategy](#62-data-management-strategy)
-    - [6.3 Current Infrastructure](#63-current-infrastructure)
-  - [7. References](#7-references)
+  - [6. User Management System](#6-user-management-system)
+    - [6.1 Authentication System](#61-authentication-system)
+    - [6.2 Technician Interface](#62-technician-interface)
+    - [6.3 Guest Interface](#63-guest-interface)
+    - [6.4 Zone Assignment Process](#64-zone-assignment-process)
+  - [7. User Interface Design](#7-user-interface-design)
+    - [7.1 Technician Dashboard](#71-technician-dashboard)
+    - [7.2 Zone Setup Interface](#72-zone-setup-interface)
+    - [7.3 Guest Control Interface](#73-guest-control-interface)
+  - [8. Processing and Management Plan](#8-processing-and-management-plan)
+    - [8.1 Processing Optimization](#81-processing-optimization)
+    - [8.2 Data Management Strategy](#82-data-management-strategy)
+    - [8.3 Current Infrastructure](#83-current-infrastructure)
+  - [9. References](#9-references)
 
 ## 1. System Overview
 
@@ -55,10 +64,12 @@ Each zone has an oxygen supply unit controlled through Web Ethernet relays. The 
 - Automated oxygen enrichment based on predefined thresholds or time slots
 - Altitude equivalency calculation
 - Zone-specific monitoring and control
-- Centralized management interface
-- Local touchscreen displays in each zone
+- Centralized management interface for technicians
+- Local touchscreen displays in each zone for guest control
 - Boost mode for instant oxygen enrichment
 - Configurable operation time slots for sensor-based zones
+- Zone assignment system for guest house management
+- Maintenance lock system for zones
 
 ## 2. High-Level Design (HLD)
 
@@ -72,12 +83,14 @@ graph TD
         RPI1 -->|Ethernet| ER1[Ethernet Relay]
         ER1 --> OU1[Oxygen Unit]
         RPI1 -->|Ethernet| SW[Ethernet Switch]
+        RPI1 --- TD1[7-inch Touchscreen Display]
     end
 
     subgraph "Timer-based Zone"
         RPI2[Zone Raspberry Pi] -->|Ethernet| ER2[Ethernet Relay]
         ER2 --> OU2[Oxygen Unit]
         RPI2 -->|Ethernet| SW
+        RPI2 --- TD2[7-inch Touchscreen Display]
     end
 
     subgraph "Zone N"
@@ -86,11 +99,13 @@ graph TD
         RPIN -->|Ethernet| ERN[Ethernet Relay]
         ERN --> OUN[Oxygen Unit]
         RPIN -->|Ethernet| SW
+        RPIN --- TDN[7-inch Touchscreen Display]
     end
 
     SW -->|Ethernet| CRPI[Central Raspberry Pi]
     CRPI --> DB[(SQLite Database)]
     CRPI --> WI[Web Interface]
+    CRPI --- CTD[Central Touchscreen]
 ```
 
 ### 2.2 Component Diagram
@@ -113,6 +128,8 @@ graph LR
         DB[(Database)]
         WI[Web Interface]
         SCH[Scheduler]
+        UM[User Management]
+        ZM[Zone Management]
     end
 
     OS -->|Data Collection| ESP
@@ -123,6 +140,8 @@ graph LR
     CRP -->|Data Storage| DB
     CRP -->|User Interface| WI
     SCH -->|Schedule Management| CRP
+    UM -->|Authentication & Authorization| CRP
+    ZM -->|Zone Assignment & Control| CRP
 ```
 
 ### 2.3 Deployment Architecture
@@ -154,6 +173,8 @@ graph TD
         CentralRPi --- SQLite[(SQLite Database)]
         CentralRPi --- WebServer[Flask Web Server]
         CentralRPi --- Scheduler[Time Scheduler]
+        CentralRPi --- UserManagement[User Authentication]
+        CentralRPi --- ZoneManager[Zone Assignment]
     end
 ```
 
@@ -190,6 +211,8 @@ graph TD
   - Time-based control logic (timer-based zones)
   - Local flask app to get MAC address 
   - UI rendering for touchscreen (including boost mode button)
+  - Guest interface for zone activation/deactivation
+  - Zone assignment interface for technician
   - Communication with central RPi
   - Ethernet relay control
   - ESP32 gpio pin control via BLE
@@ -200,7 +223,9 @@ graph TD
 - **Language**: Python
 - **Frameworks**: Flask
 - **Key Functions**:
+  - Technician authentication system
   - Zone configuration (sensor-based or timer-based)
+  - Zone assignment management
   - Time slot management
   - Boost mode duration configuration
   - System-wide monitoring
@@ -212,6 +237,8 @@ graph TD
   - ESP32 gpio control logic
   - SMTP configuration and email sender
   - Scheduler for time-based operations
+  - System dashboard for technicians
+  - Zone maintenance lock functionality
 
 ### 3.3 Database Schema
 
@@ -226,6 +253,8 @@ erDiagram
         timestamp created_at
         timestamp updated_at
         boolean is_active
+        boolean is_assigned
+        boolean is_locked
         time operation_start
         time operation_end
     }
@@ -296,6 +325,14 @@ erDiagram
         timestamp updated_at
     }
     
+    TECHNICIAN {
+        int tech_id PK
+        string username
+        string password_hash
+        timestamp last_login
+        timestamp created_at
+    }
+    
     ZONE ||--o{ SENSOR : has
     ZONE ||--o{ TIME_SLOT : schedules
     SENSOR ||--o{ OXYGEN_READING : generates
@@ -317,17 +354,29 @@ erDiagram
 | `/api/boost` | POST | Activate boost mode |
 | `/api/boost/cancel` | POST | Cancel active boost mode |
 | `/api/timeslots` | GET | Get configured time slots |
+| `/api/zone/assign` | POST | Assign zone to a room |
+| `/api/zone/unassign` | POST | Unassign zone from room |
+| `/api/zone/activate` | POST | Activate zone operation |
+| `/api/zone/deactivate` | POST | Deactivate zone operation |
 
 #### Central RPi API Endpoints
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
+| `/api/auth/login` | POST | Technician login |
+| `/api/auth/logout` | POST | Technician logout |
 | `/api/zones` | GET | List all zones |
-| `/api/zones/{id}` | GET | Get specific zone details |
+| `/api/zones/{id}` | GET/PUT/DELETE | Get/update/delete specific zone |
 | `/api/zones/{id}/history` | GET | Get historical data for zone |
 | `/api/zones/{id}/timeslots` | GET/POST | Get/set time slots for zone |
 | `/api/zones/{id}/operatinghours` | GET/POST | Get/set operating hours |
+| `/api/zones/{id}/assign` | POST | Assign zone |
+| `/api/zones/{id}/unassign` | POST | Unassign zone |
+| `/api/zones/{id}/lock` | POST | Lock zone for maintenance |
+| `/api/zones/{id}/unlock` | POST | Unlock zone from maintenance |
+| `/api/zones/{id}/boost` | POST | Activate/deactivate boost mode |
 | `/api/system/status` | GET | Get overall system status |
+| `/api/system/dashboard` | GET | Get dashboard summary stats |
 | `/api/system/logs` | GET | Retrieve system logs |
 | `/api/settings/global` | GET/POST | Get/set global settings |
 | `/api/settings/boost` | GET/POST | Get/set global boost duration |
@@ -438,8 +487,8 @@ Boost mode provides on-demand oxygen enrichment:
 
 1. **User Activation:**
    - Guest-accessible boost button on zone touchscreen interface
-   - Web interface button for central control
-   - Mobile application integration (if applicable)
+   - Technician-accessible boost button on central interface
+   - Configurable duration set by technician in global settings
 
 2. **Duration Control:**
    - Technician configures global default boost duration
@@ -493,29 +542,36 @@ sequenceDiagram
     
     Note over ZRP,OU: Local Control Loop
     ZRP->>ZRP: Check zone type (sensor/timer)
+    ZRP->>ZRP: Check if zone is locked for maintenance
+    ZRP->>ZRP: Check if zone is assigned and activated
     
-    alt Sensor-based Zone
-        ZRP->>ZRP: Check if within operating hours
-        ZRP->>ZRP: Check oxygen levels if active
-        ZRP->>ZRP: Compare with thresholds
-        
-        alt Oxygen below threshold & within operating hours
-            ZRP->>ER: Send ON command
-            ER->>OU: Activate oxygen supply
-        else Oxygen above threshold or outside operating hours
-            ZRP->>ER: Send OFF command
-            ER->>OU: Deactivate oxygen supply
+    alt Zone Not Locked AND Assigned AND Activated
+        alt Sensor-based Zone
+            ZRP->>ZRP: Check if within operating hours
+            ZRP->>ZRP: Check oxygen levels if active
+            ZRP->>ZRP: Compare with thresholds
+            
+            alt Oxygen below threshold & within operating hours
+                ZRP->>ER: Send ON command
+                ER->>OU: Activate oxygen supply
+            else Oxygen above threshold or outside operating hours
+                ZRP->>ER: Send OFF command
+                ER->>OU: Deactivate oxygen supply
+            end
+        else Timer-based Zone
+            ZRP->>ZRP: Check if current time matches any time slot
+            
+            alt Within configured time slot
+                ZRP->>ER: Send ON command
+                ER->>OU: Activate oxygen supply
+            else Outside any time slot
+                ZRP->>ER: Send OFF command
+                ER->>OU: Deactivate oxygen supply
+            end
         end
-    else Timer-based Zone
-        ZRP->>ZRP: Check if current time matches any time slot
-        
-        alt Within configured time slot
-            ZRP->>ER: Send ON command
-            ER->>OU: Activate oxygen supply
-        else Outside any time slot
-            ZRP->>ER: Send OFF command
-            ER->>OU: Deactivate oxygen supply
-        end
+    else Zone Locked OR Not Assigned OR Not Activated
+        ZRP->>ER: Send OFF command
+        ER->>OU: Deactivate oxygen supply
     end
     
     ZRP->>CRP: Report control action
@@ -530,43 +586,62 @@ sequenceDiagram
 
 ```mermaid
 sequenceDiagram
-    participant User
+    participant Guest
+    participant Tech as Technician
     participant ZD as Zone Display
     participant ZRP as Zone RPi
     participant CD as Central Display
     participant CRP as Central RPi
     participant DB as Database
     
-    alt Zone-level Interaction
-        User->>ZD: View zone status
+    alt Guest Zone Interaction
+        Guest->>ZD: View zone status
         ZD->>ZRP: Request data
         ZRP->>ZD: Display data
         
-        User->>ZD: Press boost button
+        Guest->>ZD: Press boost button
         ZD->>ZRP: Activate boost mode
         ZRP->>ER: Turn ON oxygen supply
         ZRP->>CRP: Report boost activation
         CRP->>DB: Log boost event
         
-        User->>ZD: Cancel boost
+        Guest->>ZD: Cancel boost
         ZD->>ZRP: Deactivate boost mode
         ZRP->>ER: Return to normal control
         
-        User->>ZD: Adjust zone settings
-        ZD->>ZRP: Update settings
+        Guest->>ZD: Activate/Deactivate zone
+        ZD->>ZRP: Update zone status
         ZRP->>CRP: Sync changes
         CRP->>DB: Store updated settings
-    else Central-level Interaction
-        User->>CD: View system dashboard
-        CD->>CRP: Request system data
-        CRP->>DB: Query database
-        DB->>CRP: Return data
-        CRP->>CD: Display system status
+    else Technician Zone Setup
+        Tech->>ZD: Login to zone setup
+        ZD->>CRP: Authenticate technician
+        CRP->>ZD: Authorization response
         
-        User->>CD: Modify system settings
+        Tech->>ZD: Assign zone
+        ZD->>ZRP: Set zone assignment
+        ZRP->>CRP: Update zone status
+        CRP->>DB: Store assignment
+    else Technician Central Management
+        Tech->>CD: Login to technician interface
+        CD->>CRP: Authenticate technician
+        CRP->>CD: Display dashboard
+        
+        Tech->>CD: View system summary
+        CD->>CRP: Request dashboard data
+        CRP->>DB: Query statistics
+        DB->>CRP: Return data
+        CRP->>CD: Display system summary
+        
+        Tech->>CD: Modify global settings
         CD->>CRP: Update settings
         CRP->>DB: Store new settings
         CRP->>ZRP: Push settings to zones
+        
+        Tech->>CD: Manage zone configuration
+        CD->>CRP: Update zone settings
+        CRP->>DB: Store changes
+        CRP->>ZRP: Push configuration to zone
     end
 ```
 
@@ -587,10 +662,14 @@ sequenceDiagram
     
     loop For each zone with active time slot
         SCH->>CRP: Notify slot activation
-        CRP->>ZRP: Send activation command
-        ZRP->>ER: Turn ON oxygen supply
-        ZRP->>CRP: Confirm activation
-        CRP->>DB: Log event
+        CRP->>ZRP: Check if zone is locked, assigned and activated
+        
+        alt Zone Not Locked AND Assigned AND Activated
+            CRP->>ZRP: Send activation command
+            ZRP->>ER: Turn ON oxygen supply
+            ZRP->>CRP: Confirm activation
+            CRP->>DB: Log event
+        end
     end
     
     loop For each zone with ending time slot
@@ -627,30 +706,198 @@ sequenceDiagram
     end
 ```
 
-## 6. Processing and Management Plan
+## 6. User Management System
 
-### 6.1 Processing Optimization
+### 6.1 Authentication System
+
+The system implements a single-user authentication model for technicians only:
+
+1. **Technician Authentication:**
+   - Single technician account with password protection
+   - Password creation/reset through terminal commands:
+     - `flask create-superuser`
+     - `flask update-superuser`
+   - Session-based authentication using secure cookies
+   - Automatic session timeout after period of inactivity
+
+2. **Login Types:**
+   - **Technician Setup Login:** Provides access to the central system management interface
+   - **Zone Setup Login:** Provides access to zone assignment interface on individual zone displays
+
+3. **Security Features:**
+   - Password hashing using bcrypt
+   - Rate limiting for login attempts
+   - Session invalidation on logout
+   - Activity logging for audit trail
+
+### 6.2 Technician Interface
+
+The technician interface provides comprehensive system management capabilities:
+
+1. **Summary Dashboard:**
+   - Total zones created vs. assigned
+   - Breakdown of assigned zones (sensor-based vs. timer-based)
+   - Currently active zones (activated by guests)
+   - Zones with oxygen supply currently ON
+   - Zones with active boost mode
+   - Zones locked for maintenance
+   - System health indicators
+
+2. **Global Configuration:**
+   - Company logo upload and display settings
+   - Current altitude setting
+   - Min/Max oxygen supply range configuration
+   - Default boost mode duration
+   - Zone-to-relay channel mapping
+   - System-wide operating parameters
+
+3. **Zone Management:**
+   - Create/Update/Delete zones
+   - Zone assignment status management
+   - Zone activation/deactivation controls
+   - Boost mode control for each zone
+   - Maintenance lock functionality
+   - Sensor-based zone monitoring (current altitude equivalency)
+   - Historical data visualization
+
+4. **Zone Control Panel:**
+   - Consolidated view of all assigned zones
+   - Quick activate/deactivate controls
+   - Boost mode toggle buttons
+   - Current status indicators
+   - Real-time sensor readings for sensor-based zones
+
+### 6.3 Guest Interface
+
+The guest interface is limited to basic zone control functions:
+
+1. **Zone Display Interface:**
+   - Current oxygen level or altitude equivalency (sensor-based zones)
+   - Zone activation/deactivation control
+   - Target altitude equivalency setting (within allowed range)
+   - Boost mode toggle button with countdown timer
+   - Status indicators (maintenance lock, assignment status)
+
+2. **Access Controls:**
+   - Guests can only interact with assigned and unlocked zones
+   - Settings are constrained within technician-defined limits
+   - No authentication required for guest interface
+
+### 6.4 Zone Assignment Process
+
+1. **Initial Setup:**
+   - Technician logs into Zone Setup on the zone's display
+   - System presents list of available (unassigned and unlocked) zones
+   - Technician selects appropriate zone for assignment
+   - System confirms assignment and activates zone configuration
+
+2. **Post-Assignment:**
+   - Zone display switches to guest interface
+   - Zone is marked as assigned in central database
+   - Zone appears in assigned zone list on technician dashboard
+   - Zone becomes available for guest control
+
+3. **Unassignment Process:**
+   - Technician can unassign zone through zone management interface
+   - Unassignment deactivates the zone and disables guest control
+   - Zone display reverts to unassigned state
+   - Zone becomes available for reassignment
+
+## 7. User Interface Design
+
+### 7.1 Technician Dashboard
+
+The central technician dashboard will feature:
+
+1. **Summary Statistics Panel:**
+   - Visual indicators for zone statistics (charts and counters)
+   - Color-coded status indicators
+   - System health monitoring gauges
+
+2. **Quick Control Panel:**
+   - Filterable list of all zones
+   - Toggle switches for zone activation/deactivation
+   - Boost mode controls
+   - Maintenance lock controls
+
+3. **Global Settings Panel:**
+   - Form-based configuration interface
+   - Logo preview and upload function
+   - System parameters with validation
+   - Save/reset controls
+
+4. **Navigation Menu:**
+   - Dashboard view
+   - Zone management
+   - System settings
+   - Logs and reports
+   - User management
+
+### 7.2 Zone Setup Interface
+
+The zone setup interface on individual displays will include:
+
+1. **Authentication Screen:**
+   - Username/password input for technician
+   - Secure login process
+
+2. **Zone Assignment Screen:**
+   - List of available zones with details
+   - Search/filter functionality
+   - Assignment confirmation dialog
+   - Cancel option to return to login
+
+3. **Zone Configuration:**
+   - Zone-specific settings after assignment
+   - Operating parameters configuration
+   - Time slot setup for timer-based zones
+   - Sensor calibration options for sensor-based zones
+
+### 7.3 Guest Control Interface
+
+The zone control interface for guests will feature:
+
+1. **Status Display:**
+   - Current oxygen level (sensor-based zones)
+   - Target altitude equivalency display
+   - Zone status indicator (active/inactive)
+   - Visual feedback for boost mode
+   - Maintenance lock status indicator
+
+2. **Control Elements:**
+   - On/Off toggle switch for zone activation
+   - Boost mode button with timer display
+   - Target altitude adjustment controls (within allowed range)
+   - Simple, intuitive interface suitable for guests
+
+## 8. Processing and Management Plan
+
+### 8.1 Processing Optimization
 
 - Implement multi-threading for sensor data processing
 - Optimize database queries with proper indexing
 - Use in-memory caching for frequently accessed data
 - Implement efficient data aggregation algorithms
 - Schedule-based processing with priority queuing for timer functions
+- Optimized zone status polling for dashboard updates
 
-### 6.2 Data Management Strategy
+### 8.2 Data Management Strategy
 
 - Implement data retention policies (raw data vs. aggregated data)
 - Use time-based partitioning for sensor readings
 - Implement data archiving for historical analysis
 - Optimized storage for time slot configurations with efficient lookup
+- Regular database maintenance and optimization tasks
 
-### 6.3 Current Infrastructure
+### 8.3 Current Infrastructure
 
 - Wired Ethernet for zone-to-central communication
 - BLE for sensor-to-zone communication
 - NTP synchronization for accurate time-based operations
+- Local file storage for logs and configuration backup
+- Secure authentication for technician access
 
-## 7. References
+## 9. References
 
 1. STM32 Microcontroller Documentation
 2. ESP32 Technical Reference Manual
