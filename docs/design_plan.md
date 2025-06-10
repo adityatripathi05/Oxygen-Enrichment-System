@@ -1,8 +1,8 @@
-# Oxygen Enrichment Control System Design_v0.1
+# Oxygen Enrichment Control System Design_v1.0
 ## Architecture Plan
 
 ## Table of Contents
-- [Oxygen Enrichment Control System Design\_v0.1](#oxygen-enrichment-control-system-design_v01)
+- [Oxygen Enrichment Control System Design\_v1.0](#oxygen-enrichment-control-system-design_v10)
   - [Architecture Plan](#architecture-plan)
   - [Table of Contents](#table-of-contents)
   - [1. System Overview](#1-system-overview)
@@ -20,27 +20,45 @@
     - [3.4 API Design](#34-api-design)
       - [Zone RPi API Endpoints](#zone-rpi-api-endpoints)
       - [Central RPi API Endpoints](#central-rpi-api-endpoints)
-  - [4. Data Flow Diagrams](#4-data-flow-diagrams)
-    - [4.1 Sensor Data Flow](#41-sensor-data-flow)
-    - [4.2 Control System Flow](#42-control-system-flow)
-    - [4.3 User Interaction Flow](#43-user-interaction-flow)
-  - [5. Processing and Management Plan](#5-processing-and-management-plan)
-      - [Processing Optimization](#processing-optimization)
-      - [Data Management Strategy](#data-management-strategy)
-      - [Current Infrastructure](#current-infrastructure)
-  - [6. References](#6-references)
+    - [3.5 Sensor Sampling Framework](#35-sensor-sampling-framework)
+      - [Sampling Frequency Configuration](#sampling-frequency-configuration)
+      - [Data Processing Pipeline](#data-processing-pipeline)
+      - [Data Retention Policies](#data-retention-policies)
+    - [3.6 Logging and Monitoring System](#36-logging-and-monitoring-system)
+      - [Logging Levels](#logging-levels)
+  - [4. Zone Operation Modes](#4-zone-operation-modes)
+    - [4.1 Sensor-based Zone Operation](#41-sensor-based-zone-operation)
+    - [4.2 Timer-based Zone Operation](#42-timer-based-zone-operation)
+    - [4.3 Boost Mode Operation](#43-boost-mode-operation)
+  - [5. Data Flow Diagrams](#5-data-flow-diagrams)
+    - [5.1 Sensor Data Flow](#51-sensor-data-flow)
+    - [5.2 Control System Flow](#52-control-system-flow)
+    - [5.3 User Interaction Flow](#53-user-interaction-flow)
+    - [5.4 Time-based Control Flow](#54-time-based-control-flow)
+  - [6. Processing and Management Plan](#6-processing-and-management-plan)
+    - [6.1 Processing Optimization](#61-processing-optimization)
+    - [6.2 Data Management Strategy](#62-data-management-strategy)
+    - [6.3 Current Infrastructure](#63-current-infrastructure)
+  - [7. References](#7-references)
 
 ## 1. System Overview
 
-The Oxygen Enrichment Control System is designed for vacation guest houses to monitor and manage oxygen levels in different zones. The system uses oxygen sensors connected to ESP32 microcontrollers that communicate via Bluetooth with zone-specific Raspberry Pi units. Each zone has an oxygen supply unit controlled through Web Ethernet relays. The central Raspberry Pi collects data from all zones and provides system-wide monitoring and control.
+The Oxygen Enrichment Control System is designed for vacation guest houses to monitor and manage oxygen levels in different zones. The system now supports both sensor-based and timer-based oxygen control:
+
+1. **Sensor-based Zones**: Use oxygen sensors connected to ESP32 microcontrollers that communicate via Bluetooth with zone-specific Raspberry Pi units.
+2. **Timer-based Zones**: Use predefined time slots to control oxygen supply where sensors cannot be installed.
+
+Each zone has an oxygen supply unit controlled through Web Ethernet relays. The central Raspberry Pi collects data from all zones and provides system-wide monitoring and control.
 
 **Key Features:**
-- Real-time oxygen level monitoring
-- Automated oxygen enrichment based on predefined thresholds
+- Real-time oxygen level monitoring (in sensor-based zones)
+- Automated oxygen enrichment based on predefined thresholds or time slots
 - Altitude equivalency calculation
 - Zone-specific monitoring and control
 - Centralized management interface
 - Local touchscreen displays in each zone
+- Boost mode for instant oxygen enrichment
+- Configurable operation time slots for sensor-based zones
 
 ## 2. High-Level Design (HLD)
 
@@ -48,7 +66,7 @@ The Oxygen Enrichment Control System is designed for vacation guest houses to mo
 
 ```mermaid
 graph TD
-    subgraph "Zone 1"
+    subgraph "Sensor-based Zone"
         OS1[Oxygen Sensor] --> ESP1[ESP32 Microcontroller]
         ESP1 -->|BLE| RPI1[Zone Raspberry Pi]
         RPI1 -->|Ethernet| ER1[Ethernet Relay]
@@ -56,10 +74,8 @@ graph TD
         RPI1 -->|Ethernet| SW[Ethernet Switch]
     end
 
-    subgraph "Zone 2"
-        OS2[Oxygen Sensor] --> ESP2[ESP32 Microcontroller]
-        ESP2 -->|BLE| RPI2[Zone Raspberry Pi]
-        RPI2 -->|Ethernet| ER2[Ethernet Relay]
+    subgraph "Timer-based Zone"
+        RPI2[Zone Raspberry Pi] -->|Ethernet| ER2[Ethernet Relay]
         ER2 --> OU2[Oxygen Unit]
         RPI2 -->|Ethernet| SW
     end
@@ -89,36 +105,47 @@ graph LR
         ESP[ESP32 Microcontrollers]
         ZRP[Zone Raspberry Pi]
         ERlay[Ethernet Relays]
+        TM[Timer Module]
     end
 
     subgraph "Management Layer"
         CRP[Central Raspberry Pi]
         DB[(Database)]
         WI[Web Interface]
+        SCH[Scheduler]
     end
 
     OS -->|Data Collection| ESP
     ESP -->|BLE Communication| ZRP
     ZRP -->|Control Commands| ERlay
     ZRP -->|Data Transmission| CRP
+    TM -->|Time-based Control| ZRP
     CRP -->|Data Storage| DB
     CRP -->|User Interface| WI
+    SCH -->|Schedule Management| CRP
 ```
 
 ### 2.3 Deployment Architecture
 
 ```mermaid
 graph TD
-    subgraph "Physical Zone"
+    subgraph "Sensor-based Zone"
         OxySensor[Oxygen Sensor] --> ESP32
-        ESP32 -->|BLE| ZoneRPi[Zone Raspberry Pi]
-        ZoneRPi -->|HTTP/API| EthRelay[Ethernet Relay]
-        EthRelay --> OxyUnit[Oxygen Unit]
-        ZoneRPi --- Display[7-inch Touchscreen]
+        ESP32 -->|BLE| ZoneRPi1[Zone Raspberry Pi]
+        ZoneRPi1 -->|HTTP/API| EthRelay1[Ethernet Relay]
+        EthRelay1 --> OxyUnit1[Oxygen Unit]
+        ZoneRPi1 --- Display1[7-inch Touchscreen]
+    end
+    
+    subgraph "Timer-based Zone"
+        ZoneRPi2[Zone Raspberry Pi] -->|HTTP/API| EthRelay2[Ethernet Relay]
+        EthRelay2 --> OxyUnit2[Oxygen Unit]
+        ZoneRPi2 --- Display2[7-inch Touchscreen]
     end
 
     subgraph "Network Layer"
-        ZoneRPi -->|Ethernet| Switch[Ethernet Switch]
+        ZoneRPi1 -->|Ethernet| Switch[Ethernet Switch]
+        ZoneRPi2 -->|Ethernet| Switch
         Switch -->|Ethernet| CentralRPi[Central Raspberry Pi]
     end
 
@@ -126,6 +153,7 @@ graph TD
         CentralRPi --- CDisplay[7-inch Touchscreen]
         CentralRPi --- SQLite[(SQLite Database)]
         CentralRPi --- WebServer[Flask Web Server]
+        CentralRPi --- Scheduler[Time Scheduler]
     end
 ```
 
@@ -135,8 +163,7 @@ graph TD
 
 | Component | Specifications | Purpose |
 |-----------|---------------|---------|
-| STM32 Microcontroller | ARM Cortex-M4, Low-power | Process sensor data |
-| ESP32 | Dual-core, Wi-Fi/BLE | Communication bridge |
+| ESP32 Microcontroller | Dual-core, BLE | Communication bridge |
 | Oxygen Sensor | Electrochemical/Zirconia-based | Monitor oxygen levels |
 | Raspberry Pi 4 | Quad-core, 4GB+ RAM | Zone control and display |
 | 7" Touchscreen | 800x480 resolution | User interface |
@@ -158,20 +185,24 @@ graph TD
 - **Language**: Python
 - **Frameworks**: Flask
 - **Key Functions**:
-  - BLE data reception
-  - Local python script collecting sensor data via. BLE and sending to central via. API request logic
+  - BLE data reception (sensor-based zones)
+  - Local python script collecting sensor data via BLE and sending to central via API request logic
+  - Time-based control logic (timer-based zones)
   - Local flask app to get MAC address 
-  - UI rendering for touchscreen
+  - UI rendering for touchscreen (including boost mode button)
   - Communication with central RPi
   - Ethernet relay control
-  - ESP32 gpio pin control via. BLE
+  - ESP32 gpio pin control via BLE
   - Local logging and monitoring
+  - Scheduled operation management
 
 #### Central Raspberry Pi Software
 - **Language**: Python
 - **Frameworks**: Flask
 - **Key Functions**:
-  - Zone configuration
+  - Zone configuration (sensor-based or timer-based)
+  - Time slot management
+  - Boost mode duration configuration
   - System-wide monitoring
   - Database management
   - Web interface hosting
@@ -180,6 +211,7 @@ graph TD
   - Relay control logic
   - ESP32 gpio control logic
   - SMTP configuration and email sender
+  - Scheduler for time-based operations
 
 ### 3.3 Database Schema
 
@@ -188,17 +220,20 @@ erDiagram
     ZONE {
         int zone_id PK
         string zone_name
-		string zone_relay
+        string zone_relay
+        string zone_type
         float target_altitude_equiv
         timestamp created_at
         timestamp updated_at
-		boolean is_active
+        boolean is_active
+        time operation_start
+        time operation_end
     }
-	
-	DEVICE_REGISTRY {
-		int zone_id FK
-		string MAC
-	}
+    
+    DEVICE_REGISTRY {
+        int zone_id FK
+        string MAC
+    }
     
     SENSOR {
         int sensor_id PK
@@ -207,6 +242,15 @@ erDiagram
         string model
         timestamp last_calibrated
         boolean is_active
+    }
+    
+    TIME_SLOT {
+        int slot_id PK
+        int zone_id FK
+        time start_time
+        time end_time
+        boolean is_active
+        int weekday_mask
     }
     
     OXYGEN_READING {
@@ -223,6 +267,7 @@ erDiagram
         boolean is_on
         int channel_number
         timestamp last_toggled
+        string trigger_source
     }
     
     SYSTEM_LOG {
@@ -234,10 +279,29 @@ erDiagram
         timestamp event_time
     }
     
+    BOOST_MODE {
+        int boost_id PK
+        int zone_id FK
+        int duration_minutes
+        timestamp activated_at
+        boolean is_active
+    }
+    
+    GLOBAL_SETTINGS {
+        int setting_id PK
+        string setting_name
+        string setting_value
+        string setting_type
+        string description
+        timestamp updated_at
+    }
+    
     ZONE ||--o{ SENSOR : has
+    ZONE ||--o{ TIME_SLOT : schedules
     SENSOR ||--o{ OXYGEN_READING : generates
     ZONE ||--o{ RELAY_STATUS : controls
     ZONE ||--o{ SYSTEM_LOG : produces
+    ZONE ||--o{ BOOST_MODE : enables
 ```
 
 ### 3.4 API Design
@@ -250,6 +314,9 @@ erDiagram
 | `/api/relay/status` | GET | Get current relay status |
 | `/api/relay/toggle` | POST | Toggle relay state |
 | `/api/settings` | GET/POST | Retrieve/update zone settings |
+| `/api/boost` | POST | Activate boost mode |
+| `/api/boost/cancel` | POST | Cancel active boost mode |
+| `/api/timeslots` | GET | Get configured time slots |
 
 #### Central RPi API Endpoints
 
@@ -258,12 +325,142 @@ erDiagram
 | `/api/zones` | GET | List all zones |
 | `/api/zones/{id}` | GET | Get specific zone details |
 | `/api/zones/{id}/history` | GET | Get historical data for zone |
+| `/api/zones/{id}/timeslots` | GET/POST | Get/set time slots for zone |
+| `/api/zones/{id}/operatinghours` | GET/POST | Get/set operating hours |
 | `/api/system/status` | GET | Get overall system status |
 | `/api/system/logs` | GET | Retrieve system logs |
+| `/api/settings/global` | GET/POST | Get/set global settings |
+| `/api/settings/boost` | GET/POST | Get/set global boost duration |
 
-## 4. Data Flow Diagrams
 
-### 4.1 Sensor Data Flow
+### 3.5 Sensor Sampling Framework
+
+#### Sampling Frequency Configuration
+
+| Zone Type | Normal Sampling Rate | Alert Mode Sampling Rate |
+|-----------|----------------------|--------------------------|
+| Standard Guest Zones | Every 60 seconds | Every 10 seconds |
+| High-Altitude Simulation Zones | Every 30 seconds | Every 5 seconds |
+| Common Areas | Every 120 seconds | Every 30 seconds |
+
+
+#### Data Processing Pipeline
+1. **Raw Data Collection**:
+   - ESP32 reads oxygen sensor values at configured intervals
+   - Multiple readings taken in rapid succession (5 samples over 1 second)
+
+2. **Signal Processing**:
+   - Implementation of Kalman filtering to reduce sensor noise
+   - Moving average (5-point) to smooth rapid fluctuations
+   - Outlier detection and rejection (±3σ from running average)
+
+3. **Data Transmission**:
+   - Processed data sent to zone RPi via BLE
+   - Transmission occurs immediately after processing
+   - Batching mechanism for bandwidth optimization (up to 5 readings)
+
+4. **Adaptive Sampling**:
+   - Dynamic adjustment based on system conditions
+   - Increased frequency when readings approach thresholds
+   - Reduced frequency during stable periods to conserve power
+   - Paused during non-operational hours
+
+#### Data Retention Policies
+
+| Data Type | Zone Storage | Central Storage | Archiving |
+|-----------|--------------|-----------------|-----------|
+| Raw readings | 24 hours | 7 days | Aggregated after 7 days |
+| Processed readings | 7 days | 30 days | 1 year |
+| Aggregated hourly averages | 30 days | 1 year | 5 years |
+| System events | 7 days | 90 days | 1 year |
+
+
+### 3.6 Logging and Monitoring System
+
+#### Logging Levels
+
+| Level | Description | Example | Storage Location |
+|-------|-------------|---------|------------------|
+| CRITICAL (1) | System failures requiring immediate attention | Oxygen unit failure, sensor disconnection | Zone RPi, Central RPi, Push notification |
+| ERROR (2) | Operational errors affecting functionality | Communication failure, relay malfunction | Zone RPi, Central RPi |
+| WARNING (3) | Conditions requiring attention but not immediate | Oxygen levels approaching thresholds, calibration needed | Zone RPi, Central RPi |
+| INFO (4) | Normal operational events | System startup, configuration changes, relay toggling | Zone RPi, Central RPi |
+| DEBUG (5) | Detailed information for troubleshooting | Sensor raw values, BLE packet details | Zone RPi only (configurable) |
+
+## 4. Zone Operation Modes
+
+### 4.1 Sensor-based Zone Operation
+
+Sensor-based zones rely on oxygen sensors to determine when to activate the oxygen enrichment system:
+
+1. **Core Operation:**
+   - Oxygen sensors continuously monitor O₂ levels in the zone
+   - System compares readings against the configured target altitude equivalency
+   - Oxygen supply is activated when levels fall below the threshold
+   - Supply is deactivated when levels exceed the threshold plus a configured hysteresis
+
+2. **Operating Hours:**
+   - Each sensor-based zone has configurable operation start/end times
+   - During non-operational hours, the sensor monitoring continues but automated control is disabled
+   - Manual overrides through boost mode remain available even during non-operational hours
+   - Operating hours are configured by technicians during setup
+
+3. **Scheduled Time Slots:**
+   - In addition to sensor-based control, technician-configured time slots can be defined
+   - During these slots, oxygen supply is activated regardless of sensor readings
+   - This ensures scheduled oxygen enrichment at specific times
+   - Useful for preemptive enrichment before peak usage hours
+
+### 4.2 Timer-based Zone Operation
+
+Timer-based zones operate exclusively on predefined schedules:
+
+1. **Core Operation:**
+   - No oxygen sensors are installed in these zones
+   - Oxygen enrichment solely activated based on configured time slots
+   - Multiple time slots can be defined for each day of the week
+   - Time slots include start time, end time, and days of the week (using bitmask)
+
+2. **Time Slot Configuration:**
+   - Technicians configure time slots during zone setup
+   - Interface allows multiple slots per day with minute-level granularity
+   - Recurring patterns can be set (e.g., weekdays only, weekends only, specific days)
+   - Slots can be temporarily disabled without deletion
+
+3. **Overlap Handling:**
+   - System handles overlapping time slots by merging them into continuous periods
+   - Gap detection ensures optimal oxygen level maintenance
+   - Configurable minimum gap between slots to prevent rapid cycling of equipment
+
+### 4.3 Boost Mode Operation
+
+Boost mode provides on-demand oxygen enrichment:
+
+1. **User Activation:**
+   - Guest-accessible boost button on zone touchscreen interface
+   - Web interface button for central control
+   - Mobile application integration (if applicable)
+
+2. **Duration Control:**
+   - Technician configures global default boost duration
+   - Can be overridden for specific zones if needed
+   - Typical duration range: 10-60 minutes
+
+3. **Operation Logic:**
+   - When activated, relay immediately turns ON oxygen supply
+   - Countdown timer displayed on zone interface
+   - User can manually deactivate before timeout
+   - System automatically deactivates after duration expires
+   - Boost operation records stored in database for analysis
+
+4. **Priority Handling:**
+   - Boost mode takes priority over all other control mechanisms
+   - When boost is active, sensor-based and timer-based controls are temporarily suspended
+   - After boost concludes, zone returns to normal operation mode
+
+## 5. Data Flow Diagrams
+
+### 5.1 Sensor Data Flow
 
 ```mermaid
 sequenceDiagram
@@ -278,13 +475,14 @@ sequenceDiagram
     ESP->>ESP: Calculate altitude equivalency
     ESP->>ZRP: Send processed data via BLE
     ZRP->>ZRP: Store temporary data
-    ZRP->>ZRP: Apply control logic
+    ZRP->>ZRP: Check if within operating hours
+    ZRP->>ZRP: Apply control logic if active
     ZRP->>CRP: Forward data via Ethernet
     CRP->>DB: Store in database
     CRP->>CRP: Update real-time monitoring
 ```
 
-### 4.2 Control System Flow
+### 5.2 Control System Flow
 
 ```mermaid
 sequenceDiagram
@@ -294,15 +492,30 @@ sequenceDiagram
     participant CRP as Central RPi
     
     Note over ZRP,OU: Local Control Loop
-    ZRP->>ZRP: Check oxygen levels
-    ZRP->>ZRP: Compare with thresholds
+    ZRP->>ZRP: Check zone type (sensor/timer)
     
-    alt Oxygen below threshold
-        ZRP->>ER: Send ON command
-        ER->>OU: Activate oxygen supply
-    else Oxygen above threshold
-        ZRP->>ER: Send OFF command
-        ER->>OU: Deactivate oxygen supply
+    alt Sensor-based Zone
+        ZRP->>ZRP: Check if within operating hours
+        ZRP->>ZRP: Check oxygen levels if active
+        ZRP->>ZRP: Compare with thresholds
+        
+        alt Oxygen below threshold & within operating hours
+            ZRP->>ER: Send ON command
+            ER->>OU: Activate oxygen supply
+        else Oxygen above threshold or outside operating hours
+            ZRP->>ER: Send OFF command
+            ER->>OU: Deactivate oxygen supply
+        end
+    else Timer-based Zone
+        ZRP->>ZRP: Check if current time matches any time slot
+        
+        alt Within configured time slot
+            ZRP->>ER: Send ON command
+            ER->>OU: Activate oxygen supply
+        else Outside any time slot
+            ZRP->>ER: Send OFF command
+            ER->>OU: Deactivate oxygen supply
+        end
     end
     
     ZRP->>CRP: Report control action
@@ -313,7 +526,7 @@ sequenceDiagram
     ZRP->>ER: Execute override command
 ```
 
-### 4.3 User Interaction Flow
+### 5.3 User Interaction Flow
 
 ```mermaid
 sequenceDiagram
@@ -328,6 +541,16 @@ sequenceDiagram
         User->>ZD: View zone status
         ZD->>ZRP: Request data
         ZRP->>ZD: Display data
+        
+        User->>ZD: Press boost button
+        ZD->>ZRP: Activate boost mode
+        ZRP->>ER: Turn ON oxygen supply
+        ZRP->>CRP: Report boost activation
+        CRP->>DB: Log boost event
+        
+        User->>ZD: Cancel boost
+        ZD->>ZRP: Deactivate boost mode
+        ZRP->>ER: Return to normal control
         
         User->>ZD: Adjust zone settings
         ZD->>ZRP: Update settings
@@ -347,32 +570,93 @@ sequenceDiagram
     end
 ```
 
-## 5. Processing and Management Plan
+### 5.4 Time-based Control Flow
 
-#### Processing Optimization
+```mermaid
+sequenceDiagram
+    participant SCH as Scheduler
+    participant CRP as Central RPi
+    participant ZRP as Zone RPi
+    participant ER as Ethernet Relay
+    participant DB as Database
+    
+    Note over SCH,DB: Time Slot Processing
+    SCH->>SCH: Periodic time check (every minute)
+    SCH->>DB: Query upcoming time slots
+    DB->>SCH: Return active slots
+    
+    loop For each zone with active time slot
+        SCH->>CRP: Notify slot activation
+        CRP->>ZRP: Send activation command
+        ZRP->>ER: Turn ON oxygen supply
+        ZRP->>CRP: Confirm activation
+        CRP->>DB: Log event
+    end
+    
+    loop For each zone with ending time slot
+        SCH->>CRP: Notify slot completion
+        CRP->>ZRP: Check for other active conditions
+        
+        alt No other active conditions
+            ZRP->>ER: Turn OFF oxygen supply
+        else Other conditions active (e.g., sensor threshold, boost)
+            ZRP->>ZRP: Maintain current state
+        end
+        
+        ZRP->>CRP: Report status
+        CRP->>DB: Log event
+    end
+    
+    Note over SCH,DB: Boost Mode Timing
+    SCH->>DB: Query active boost sessions
+    DB->>SCH: Return expiring boosts
+    
+    loop For each expiring boost
+        SCH->>CRP: Notify boost expiration
+        CRP->>ZRP: Send expiration command
+        ZRP->>ZRP: Check for other active conditions
+        
+        alt No other active conditions
+            ZRP->>ER: Turn OFF oxygen supply
+        else Other conditions active
+            ZRP->>ZRP: Maintain current state
+        end
+        
+        ZRP->>CRP: Report status
+        CRP->>DB: Update boost record
+    end
+```
+
+## 6. Processing and Management Plan
+
+### 6.1 Processing Optimization
 
 - Implement multi-threading for sensor data processing
 - Optimize database queries with proper indexing
 - Use in-memory caching for frequently accessed data
 - Implement efficient data aggregation algorithms
+- Schedule-based processing with priority queuing for timer functions
 
-#### Data Management Strategy
+### 6.2 Data Management Strategy
 
 - Implement data retention policies (raw data vs. aggregated data)
 - Use time-based partitioning for sensor readings
 - Implement data archiving for historical analysis
+- Optimized storage for time slot configurations with efficient lookup
 
-#### Current Infrastructure
+### 6.3 Current Infrastructure
 
 - Wired Ethernet for zone-to-central communication
 - BLE for sensor-to-zone communication
+- NTP synchronization for accurate time-based operations
 
-## 6. References
+## 7. References
 
 1. STM32 Microcontroller Documentation
 2. ESP32 Technical Reference Manual
 3. Raspberry Pi 4 Datasheet
 4. Web Ethernet Relay Technical Specifications
 5. Flask Web Framework Documentation
-6. PostgreSQL Documentation
+6. SQLite Documentation
 7. IoT System Architecture Best Practices
+8. Time-based Control Systems Standards
