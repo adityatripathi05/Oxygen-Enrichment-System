@@ -1,0 +1,119 @@
+{% extends 'adminheader.html' %}
+{% block title %}Zone Control Panel{% endblock %}
+{% block body %}
+
+<section id="content-wrapper">
+   <div class="container-fluid">
+      <div class="row">
+         <div class="col-lg-12">
+            <div class="title-header">
+               <h2>Zone Control Panel</h2>
+            </div>
+            <hr>
+            <div class="edit-area p-3">
+               {% if zones|length==0 %}
+                  No Record Found! Add Your Data.
+               {% else %}
+              
+               <div class="row">
+                  {% for x in zones %}
+                  <div class="col-lg-3 col-md-6 col-12">
+                     <div class="box-area"> 
+                        <button class="toggle-btn3 {% if x.zone_status %} on {% endif %}"
+                           onclick="toggleButton(this, '{{ x.id }}')" onmouseover="showLockMsg(this, '{{ x.id }}')" onmouseout="hideLockMsg('{{ x.id }}')" data-zone-id="{{ x.id }}" {% if x.lock_status==1 or x.is_assigned==0 %} disabled {% endif %}>
+                           {% if x.zone_status %}On{% else %}Off{% endif %}
+                        </button>
+                        
+                        <p>{{ x.zone_name }}</p>
+                        <p id="lockMsg-{{ x.id }}" style="color: rgb(224, 147, 147); font-weight: bold; display: none;"></p>
+                     </div>
+                  </div>
+                  {% endfor %}
+               </div>
+               {% endif %}
+            </div>
+         </div>
+      </div>
+   </div>
+</section>
+<div class="overlapbg"></div>
+</div>
+
+<script>
+   function toggleButton(button, zoneId) {
+    let status = button.innerText === "Off" ? 1 : 0;  // 1 for On, 0 for Off
+
+    // Update button UI
+    if (status === 1) {
+      button.innerText = "On";
+      button.classList.add("on");
+    } else {
+      button.innerText = "Off";
+      button.classList.remove("on");
+    }
+
+    // Log to see what data is being sent
+    console.log('Sending data:', { 'zone_id': zoneId, 'status': status });
+
+    // Send AJAX request to update database
+    fetch("{{ url_for('zone_management.update_status') }}", {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': '{{ csrf_token() }}'  // Ensure CSRF token if required
+      },
+      body: JSON.stringify({ 'zone_id': zoneId, 'status': status })
+    })
+    .then(response => response.json())
+    .then(data => {
+      console.log('Response received:', data);
+      if (!data.success) {
+        alert('Error updating status');
+      }
+    })
+    .catch(error => console.log('Error:', error));
+}
+
+// Function to show lock message when button is disabled
+function showLockMsg(btn, id) {
+    if (btn.disabled) {
+        const msg = document.getElementById(`lockMsg-${id}`);
+        msg.textContent = "Zone is locked or Unassigned!";
+        msg.style.display = "block";
+    }
+}
+
+function hideLockMsg(id) {
+    const msg = document.getElementById(`lockMsg-${id}`);
+    msg.style.display = "none";
+}
+
+
+// // auto update toggle button
+// function checkStatus(zoneId, buttonElement) {
+//     fetch(`../zone/get_zone_status/${zoneId}`)
+//       .then(response => response.json())
+//       .then(data => {
+//         if ('zone_status' in data) {
+//           if (data.zone_status) {
+//             buttonElement.classList.add("on");
+//             buttonElement.innerText = "On";
+//           } else {
+//             buttonElement.classList.remove("on");
+//             buttonElement.innerText = "Off";
+//           }
+//         }
+//       })
+//       .catch(error => console.error('Error fetching status:', error));
+//   }
+
+//   // Har 2 second me status check karega
+//   setInterval(function () {
+//     document.querySelectorAll('.toggle-btn').forEach(button => {
+//       let zoneId = button.getAttribute('data-zone-id');  // Button se ID le raha hai
+//       checkStatus(zoneId, button);
+//     });
+//   }, 2000);
+</script>
+
+{% endblock body %}

@@ -1,0 +1,147 @@
+{% extends 'userheader.html' %}
+{% block title %} Select Guest Zone {% endblock %}
+{% block body %}
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<div class="container">
+    <div class="card-box">
+        <div class="row">
+            {% include 'partials/flash_messages.html' %}
+            <div class="col-sm-3 mt-4">
+                <!-- <h2>Select Zone</h2> -->
+                <div class="card left-card">
+                    <div class="card-body">
+                        <form action="{{ url_for('main.select_zone') }}" method="POST">
+                            <label class="htxt" for="zone_number">Select Zone</label> <br>
+                            <select id="zone_number" name="zone_name" class="opt form-select" required>
+
+                                <option value="">--Select Zone--</option>
+                                {% for zone in zones %}
+                                <option value="{{ zone.zone_name }}">{{ zone.zone_name }}</option>
+                                zone_name
+                                {% endfor %}
+                            </select>
+                            <button type="submit" class="btn btn-outline-success">Submit</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-sm-8 mt-4">
+                <!-- <h2>Oxygen Enrichment Control</h2> -->
+                <div class="card cardimg">
+                    <div class="card-body">
+                        <canvas id="altitudeBarChart" width="155" height="100"></canvas>
+                    </div>
+                </div>
+            </div>
+            <!-- <div class="col-sm-1 mt-4">
+                <i id="toggleIcon" class="fa fa-moon-o" aria-hidden="true"></i>
+            </div> -->
+        </div>
+    </div>
+</div>
+<script>
+    const barChartCtx = document.getElementById('altitudeBarChart').getContext('2d');
+    // Minimum and maximum altitude values
+    const minAltitude = 1000;
+    const maxAltitude = 10000;
+    // Get the current altitude value from Flask
+    const currentAltitude = {{ altitudes | tojson }};
+    // Calculate the percentage for the bar chart
+    const altitudePercentage = (currentAltitude - minAltitude) / (maxAltitude - minAltitude) * 100;
+    // Color based on altitude
+    let barColor = 'blue';
+    if (currentAltitude < 4000) {
+        barColor = 'green';
+    } else if (currentAltitude < 7000) {
+        barColor = 'yellow';
+    } else {
+        barColor = 'red';
+    }
+
+    // Create the Bar Chart
+    const altitudeBarChart = new Chart(barChartCtx, {
+        type: 'bar',
+        data: {
+            labels: ['Altitude'], // x-axis label
+            datasets: [{
+                // No label to avoid showing it in the legend
+                data: [altitudePercentage], // Data for the bar
+                backgroundColor: barColor,
+                borderColor: 'black',
+                borderWidth: 1,
+                barThickness: 50
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    min: 0,
+                    max: 100,
+                    ticks: {
+                        stepSize: 10,
+                        // Adjust tick callback to show altitude range if needed
+                        callback: function (value) {
+                            return Math.round((value / 100) * (maxAltitude - minAltitude) + minAltitude);
+                        },
+                        color: function (context) {
+                            // Change tick label color dynamically
+                            const value = context.tick.value;
+                            if (value <= 4000) {
+                                return 'black';
+                            } else if (value <= 7000) {
+                                return 'yellow';
+                            } else {
+                                return 'red';
+                            }
+                        }
+                    }
+                },
+                x: {
+                    beginAtZero: true,
+                    ticks: {
+                        display: false // Hide x-axis ticks
+                    },
+                    offset: false  //Align left
+                }
+            },
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        // Customize the tooltip content to hide the percentage
+                        label: function (context) {
+                            return ''; // Empty string means no tooltip for the bar value
+                        },
+                        title: function () {
+                            return `Current Altitude:\n${currentAltitude} feet`; // Optional custom tooltip title
+                        }
+                    }
+                },
+                legend: {
+                    display: false // Hide the legend
+                }
+            }
+        }
+    });
+
+
+// async function claimZone(zoneId) {
+//   // 1. grab local device-info from the Pi itself
+//   const { device_id } = await fetch("http://localhost:5002/get-mac")
+//                             .then(r => r.json());
+//     console.log("Device ID: ", device_id);
+//   // 2. call your central Flask API
+//   await fetch("https://192.168.1.171:5000/api/device/" + device_id + "/assign", {
+//     method: "POST",
+//     headers: { "Content-Type": "application/json" },
+//     body: JSON.stringify({ zone_id: zoneId })
+//   });
+//   // then re-render the monitoring UI…
+// } 
+</script>
+
+
+{% endblock body %}

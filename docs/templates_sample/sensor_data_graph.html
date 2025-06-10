@@ -1,0 +1,273 @@
+{% extends 'adminheader.html' %}
+{% block title %}Sensor Data Chart{% endblock %}
+{% block body %}
+
+<style>
+  @media (max-width: 768px) {
+    .bct {
+      height: 430px;
+      width: 180px;
+    }
+
+    .chart-containers {
+      overflow-x: scroll;
+      /* Allow scrolling on smaller screens */
+      white-space: nowrap;
+    }
+
+    .chart-container {
+      overflow-x: scroll;
+      /* Allow scrolling on smaller screens */
+      white-space: nowrap;
+      height: 300px;
+      width: 600px;
+    }
+
+  }
+</style>
+
+<script>
+  // Get the theme and set colors
+  const isDarkMode = localStorage.getItem("theme") !== "white";
+  const textColor = isDarkMode ? 'rgb(252, 252, 252)' : 'rgb(33, 33, 33)';
+  const gridColor = isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
+
+  $("#toggleIcon").click(function () {
+    // Check current theme
+    const isLight = localStorage.getItem("theme") === "white";
+
+    if (isLight) {
+      // Switch to dark mode
+      localStorage.removeItem("theme");
+      $(this).removeClass("fa-moon-o").addClass("fa-sun-o");
+    } else {
+      // Switch to light mode
+      localStorage.setItem("theme", "white");
+      $(this).removeClass("fa-sun-o").addClass("fa-moon-o");
+    }
+
+    // Wait for theme change, then reload the page
+    setTimeout(function () {
+      window.location.reload();
+    }, 200); // 0.3 second delay so browser applies class
+  });
+
+</script>
+
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<section id="content-wrapper">
+  <div class="container-fluid">
+    <div class="row">
+      <div class="col-lg-12">
+        <div class="title-header">
+          <h2>{{ zone_name }} (IP - {{ sensor_ip }}) -> Graphical Interface </h2> 
+        </div>
+        <hr>
+        <div class="add-list-btn-sec" style="display: flex; gap: 5px;">
+          <form method="POST" action="{{ url_for('zone_management.sensor_data_chart') }}">
+            <input type="hidden" name="sensor_ip" value="{{ sensor_ip }}">
+            <button type="submit" class="add-list-btnn">
+              <i class="fa fa-bar-chart"></i>
+              </button>
+          </form>
+
+          <form method="POST" action="{{ url_for('zone_management.sensor_data_table') }}">
+            <input type="hidden" name="sensor_ip" value="{{ sensor_ip }}">
+            <button type="submit" class="add-list-btnn tab-btn">
+              <i class="fa fa-table"></i>
+              </button>
+          </form>
+        </div>
+      </div>
+
+      <!-- <div class="col-lg-4 col-md-4 col-12">
+        <h6>Current Altitude : {{ altitudes }}</h6>
+      </div>
+      <div class="col-lg-8 col-md-8 col-12">
+        <h6 class="hided">Sensor Data Chart for IP : {{ sensor_ip }}</h6>
+      </div> -->
+      <!-- Bar Chart -->
+      <div class="col-lg-2 col-md-2 col-12 bct">
+        <!-- <h6>Current Alti : {{ altitudes }}</h6> -->
+        <canvas id="altitudeBarChart" width="130" height="365"></canvas>
+      </div>
+
+      <!-- Line Chart -->
+      <div class="col-lg-10 col-md-10 col-12 chart-containers">
+        <div class="chart-container">
+          <h6 class="hidd">Sensor Data Chart for IP : {{ sensor_ip }}</h6>
+          <canvas id="lineChart"></canvas>
+        </div>
+
+        <script>
+          // Line chart context and data
+          const lineChartCtx = document.getElementById('lineChart').getContext('2d');
+          const timestamps = {{ timestamps | tojson }};
+          const oxygenLevels = {{ oxygen_levels | tojson }};
+          const minOxygen = {{ min_oxygen }};
+          const maxOxygen = {{ max_oxygen }};
+
+          const lineChartData = {
+            labels: timestamps,
+            datasets: [
+              {
+                label: 'Oxygen Level',
+                data: oxygenLevels,
+                borderColor: 'rgba(0, 255, 0, 1)',
+                borderWidth: 2,
+                fill: false
+              },
+              {
+                label: 'Max Oxygen Level',
+                data: Array(timestamps.length).fill(maxOxygen),
+                borderColor: 'rgba(54, 162, 235, 1)',
+                borderDash: [5, 5],
+                fill: false
+              },
+              {
+                label: 'Min Oxygen Level',
+                data: Array(timestamps.length).fill(minOxygen),
+                borderColor: 'rgba(255, 99, 132, 1)',
+                borderDash: [5, 5],
+                fill: false
+              }
+              // {
+              //   label: 'Max Oxygen Level',
+              //   data: Array(timestamps.length).fill(maxOxygen),
+              //   borderColor: 'rgba(54, 162, 235, 1)',
+              //   borderDash: [5, 5],
+              //   fill: false
+              // }
+            ]
+          };
+
+          // Initialize the Line Chart
+          new Chart(lineChartCtx, {
+            type: 'line',
+            data: lineChartData,
+            options: {
+              responsive: true,
+              plugins: {
+                legend: {
+                  labels: {
+                    color: textColor
+                  }
+                }
+              },
+              scales: {
+                x: {
+                  title: {
+                    display: true,
+                    text: 'Timestamp',
+                    color: textColor
+                  },
+                  ticks: {
+                    color: textColor
+                  }
+                },
+                y: {
+                  title: {
+                    display: true,
+                    text: 'Oxygen Level',
+                    color: textColor
+                  },
+                  ticks: {
+                    color: textColor
+                  }
+                }
+              }
+            }
+          });
+        </script>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+
+<script>
+  const barChartCtx = document.getElementById('altitudeBarChart').getContext('2d');
+  // Minimum and maximum altitude values
+  const minAltitude = 1000;
+  const maxAltitude = 10000;
+  // Get the current altitude value from Flask
+  const currentAltitude = {{ altitudes | tojson }};
+  // Calculate the percentage for the bar chart
+  const altitudePercentage = (currentAltitude - minAltitude) / (maxAltitude - minAltitude) * 100;
+  // Color based on altitude
+  let barColor = 'blue';
+  if (currentAltitude < 4000) {
+    barColor = 'green';
+  } else if (currentAltitude < 7000) {
+    barColor = 'yellow';
+  } else {
+    barColor = 'red';
+  }
+  // Create the Bar Chart
+  const altitudeBarChart = new Chart(barChartCtx, {
+    type: 'bar',
+    data: {
+      labels: ['Altitude'], // x-axis label
+      datasets: [{
+        // No label to avoid showing it in the legend
+        data: [altitudePercentage], // Data for the bar
+        backgroundColor: barColor,
+        borderColor: 'black',
+        borderWidth: 1,
+        barThickness: 50
+      }]
+    },
+    options: {
+      responsive: true,
+      scales: {
+        y: {
+          beginAtZero: true,
+          min: 0,
+          max: 100,
+          ticks: {
+            stepSize: 10,
+            color: textColor,
+            // Adjust tick callback to show altitude range if needed
+            callback: function (value) {
+              return Math.round((value / 100) * (maxAltitude - minAltitude) + minAltitude);
+            },
+          }
+        },
+        x: {
+          title: {
+                    display: true,
+                    text: 'Altitude',
+                    color: textColor
+                  },
+          beginAtZero: true,
+          ticks: {
+            display: false // Hide x-axis ticks
+          }
+        }
+      },
+      plugins: {
+        tooltip: {
+          callbacks: {
+            // Customize the tooltip content to hide the percentage
+            label: function (context) {
+              return ''; // Empty string means no tooltip for the bar value
+            },
+            title: function () {
+              return `Current Altitude: \n${currentAltitude} feet`; // Optional custom tooltip title
+            }
+          }
+        },
+        legend: {
+          display: false // Hide the legend
+        }
+      }
+    }
+  });
+
+
+</script>
+
+{% endblock body %}

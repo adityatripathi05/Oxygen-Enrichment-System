@@ -1,0 +1,40 @@
+<div aria-live="polite" aria-atomic="true" class="top-0 end-0">
+  <div id="toast-container"></div>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    <script>
+      document.addEventListener('DOMContentLoaded', function () {
+        {% for category, message in messages %}
+          showToast("{{ message }}", "{{ category }}");
+        {% endfor %}
+      });
+    </script>
+  {% endif %}
+{% endwith %}
+
+<script>
+  function showToast(message, category) {
+  let bgClass = "text-bg-primary";
+  if (category === "success") bgClass = "text-bg-success";
+  else if (category === "danger") bgClass = "text-bg-danger";
+  else if (category === "warning") bgClass = "text-bg-warning";
+  else if (category === "info") bgClass = "text-bg-info";
+
+  const toastHTML = `
+    <div class="toast align-items-center ${bgClass} border-0 mb-2" role="alert" aria-live="assertive" aria-atomic="true">
+      <div class="d-flex">
+        <div class="toast-body">${message}</div>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+      </div>
+    </div>
+  `;
+
+  document.getElementById("toast-container").insertAdjacentHTML('beforeend', toastHTML);
+  const toastEl = document.querySelector("#toast-container .toast:last-child");
+  const toast = new bootstrap.Toast(toastEl, { delay: 5000 });
+  toast.show();
+}
+
+</script>

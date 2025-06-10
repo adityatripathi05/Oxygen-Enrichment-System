@@ -1,0 +1,99 @@
+{% extends 'adminheader.html' %}
+{% block title %}Admin Dashboard{% endblock %}
+{% block body %}
+
+<section id="content-wrapper">
+   <div class="container-fluid">
+      <div class="dashboard-section">
+         <h5>Zone Status Overview </h5>
+         <div class="dashboard-box-lineup">
+            <div class="dashboard-box-lineup-inner Bg-pta">
+               <div class="left-side">
+                  <img src="{{ url_for('static', filename='img/Users.png') }}">
+               </div>
+               <div class="right-side">
+                  <h3>Total Zones</h3>
+                  <p>{{ total_users }}</p>
+               </div>
+            </div>
+            <div class="dashboard-box-lineup-inner Bg-green">
+               <div class="left-side bg-grey">
+                  <img src="{{ url_for('static', filename='img/active-user.png') }}">
+               </div>
+               <div class="right-side">
+                  <h3>Active Zones</h3>
+                  <p>{{ activated_zones }}</p>
+               </div>
+            </div>
+            <div class="dashboard-box-lineup-inner Bg-red">
+               <div class="left-side bg-grey">
+                  <img src="{{ url_for('static', filename='img/Inactive-User.png') }}">
+               </div>
+               <div class="right-side">
+                  <h3>In-Active Zones</h3>
+                  <p>{{ deactivated_zones }}</p>
+               </div>
+            </div>
+            <div class="dashboard-box-lineup-inner Bg-warning">
+               <div class="left-side bg-grey">
+                  <img src="{{ url_for('static', filename='img/padlock.png') }}">
+               </div>
+               <div class="right-side">
+                  <h3>Locked Zones</h3>
+                  <p>{{ locked_zones }}</p>
+               </div>
+            </div>
+         </div>
+         
+         <h5>Oxygen Control Status </h5>
+         <div class="dashboard-box-lineup ">
+            <div class="dashboard-box-lineup-inner Bg-green">
+               <div class="left-side bg-orange">
+                  <img src="{{ url_for('static', filename='img/pulse.png') }}">
+               </div>
+               <div class="right-side">
+                  <h3>O2 Active</h3>
+                  <p>{{ active_users }}</p>
+               </div>
+            </div>
+
+            <div class="dashboard-box-lineup-inner Bg-red">
+               <div class="left-side bg-yellow">
+                  <img src="{{ url_for('static', filename='img/heart-beat.png') }}">
+               </div>
+               <div class="right-side bg-nred">
+                  <h3>O2 In-Active</h3>
+                  <p>{{ inactive_users }}</p>
+               </div>
+            </div>
+            
+         </div>
+
+         <h5>Zone Assignment Summary</h5>
+         <div class="dashboard-box-lineup">
+            <div class="dashboard-box-lineup-inner Bg-green">
+               <div class="left-side bg-orange">
+                  <img src="{{ url_for('static', filename='img/assignment.png') }}">
+               </div>
+               <div class="right-side">
+                  <h3>Assigned</h3>
+                  <p>{{ is_assigned }}</p>
+               </div>
+            </div>
+
+            <div class="dashboard-box-lineup-inner Bg-red">
+               <div class="left-side bg-orange">
+                  <img src="{{ url_for('static', filename='img/unassignment.png') }}">
+               </div>
+               <div class="right-side">
+                  <h3>Unassigned</h3>
+                  <p>{{ un_assigned }}</p>
+               </div>
+            </div>
+         </div>
+
+      </div>
+   </div>
+</section>
+<div class="overlapbg"></div>
+{% endblock body %}

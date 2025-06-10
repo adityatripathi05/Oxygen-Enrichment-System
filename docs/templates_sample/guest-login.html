@@ -1,0 +1,23 @@
+{% extends 'header.html' %}
+{% block title %}Guest Login{% endblock %}
+{% block body %}
+
+<div class="wrapper">
+  <div class="form-container">
+    <div class="form-title">
+      <h2>Zone Login</h2>
+    </div>
+    {% include 'partials/flash_messages.html' %}
+    <form method="POST" action="{{ url_for('main.guest_login') }}">
+      <div class="mb-4">
+        <input type="password" class="form-control" id="pwd" placeholder="Enter password" name="password" required>
+      </div>
+      <div class="field btn p-0">
+        <div class="btn-layer"></div>
+        <input type="submit" value="Login">
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock body %}

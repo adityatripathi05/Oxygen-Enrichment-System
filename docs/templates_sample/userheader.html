@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+   <head>
+      <title>{% block title %}Default Title{% endblock %}</title>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+      <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='img/profile.png') }}">
+      <link href="{{ url_for('static', filename='css/bootstrap.min.css') }}" rel="stylesheet">
+      <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+      <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/style.css') }}">
+      <script src="{{ url_for('static', filename='js/bootstrap.bundle.min.js') }}"></script>
+      <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+      <script src="{{ url_for('static', filename='js/CustomScript.js') }}"></script>
+      <script src="{{ url_for('static', filename='js/liveupdate.js') }}"></script>
+       
+   </head>
+   <body class="login-wrapper">
+    <div id="navbar-wrapper">
+        <nav class="cus-navbar">
+            <div class="container">
+                <div class="row align-items-center">
+                    <div class="col-lg-5 col-md-5 col-2">
+                        <div class="sidebar-branded">
+                            <img src="{{ url_for('static', filename=g.logo_path) }}" class="logo-sec img-fluid">
+                        </div>
+                    </div>
+                    <div class="col-lg-5 col-md-5 col-8">
+                        <div class="navbar-header">
+                            <h4>Oxygen Enrichment Control</h4>
+                        </div>
+                    </div>
+                    <div class="col-lg-2 col-md-2 col-2">
+                        <div class="profile-sec">
+                            <div class="dropdown profile-img">
+                                <!-- <i id="toggleIcon" class="fa fa-moon-o" aria-hidden="true"></i> -->
+                                <img id="toggleIconn" src="/static/icons/moon.png" width="24" height="24" style="cursor: pointer;" />
+                                    <!-- <span id="themeText" style="margin-left: 5px;"></span> -->
+                                <!-- <p>Admin User</p> -->
+                                <!-- <button type="button" class="profile-drop dropdown-toggle"
+                                    data-bs-toggle="dropdown">
+                                    <img src="{{ url_for('static', filename='img/profile.png') }}">
+                                </button> -->
+
+                                <!-- <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" href="{{ url_for('main.landing_page') }}"><i
+                                                class="fa fa-sign-out"></i> Logout</a></li>
+                                </ul> -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </nav>
+        {% block body %} {% endblock body %}
+
+        <script>
+            // Light Theme JS
+            function updateTheme() {
+            const isLight = localStorage.getItem("theme") === "white";
+
+            if (isLight) {
+                $("body").addClass("white-bg");
+                $("#toggleIconn").attr("src", "/static/icons/moon.png"); // Light theme = moon icon
+                //$("#themeText").text("Light Theme");
+                $("#toggleIconn").attr("title","Move to Dark Theme");
+            } else {
+                $("body").removeClass("white-bg");
+                $("#toggleIconn").attr("src", "/static/icons/sun.png"); // Dark theme = sun icon
+                //$("#themeText").text("Dark Theme");
+                $("#toggleIconn").attr("title","Move to Light Theme");
+            }
+        }
+    
+            // Page load hone par theme set karna
+            updateTheme();
+    
+            // Toggle button click event
+            $("#toggleIconn").click(function () {
+            $("body").toggleClass("white-bg");
+
+            if ($("body").hasClass("white-bg")) {
+                localStorage.setItem("theme", "white");
+            } else {
+                localStorage.removeItem("theme");
+            }
+
+            // Reload to apply theme change and icon properly
+            setTimeout(function () {
+                location.reload();
+            }, 200); // 0.3 second delay
+        });
+        </script>
+    </div> 
+
+   </body>
+</html>

@@ -1,0 +1,40 @@
+{% extends 'adminheader.html' %}
+{% block title %}Logo Upload{% endblock %}
+{% block body %}
+
+<section id="content-wrapper">
+   <div class="container-fluid">
+      <div class="row">
+         <div class="col-lg-12">
+            <div class="title-header">
+               <h2>Change Logo</h2>
+            </div>
+            <hr>
+            <div class="edit-area p-3">
+               <div id="file-upload-container" class="max-w-md mx-auto">
+                  <form action="{{ url_for('initial_setup.upload_logo') }}" method="post"
+                      enctype="multipart/form-data">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <label class="file-upload">
+                     <div class="flex flex-col items-center">
+                        <img src="{{ url_for('static', filename='img/upload.png') }}">
+                        <p>Click or Drag & Drop to Upload</p>
+                     </div>
+                     <input type="file" id="fileInput" name="file" required/>
+                  </label>
+                  <p id="file-name" class="mt-4 text-center text-gray-600"></p>
+                  <div class="modal-footer justify-content-center">
+                     <input type="submit" value="Upload" class="btn btn-outline-secondary btn1" placeholder="Submit">
+                   </div>
+               </form>
+
+               </div>
+            </div>
+         </div>
+      </div>
+   </div>
+</section>
+<div class="overlapbg"></div>
+</div>
+
+{% endblock body %}

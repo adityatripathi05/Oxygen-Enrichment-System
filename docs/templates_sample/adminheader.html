@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title>{% block title %}Default Title{% endblock %}</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='img/profile.png') }}">
+    <link href="{{ url_for('static', filename='css/bootstrap.min.css') }}" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="{{ url_for('static', filename='js/bootstrap.bundle.min.js') }}"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="{{ url_for('static', filename='js/CustomScript.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/liveupdate.js') }}"></script>
+</head>
+
+<body>
+    <div id="wrapper">
+        <aside id="sidebar-wrapper">
+            <div class="sidebar-brand">
+                <img src="{{ url_for('static', filename=g.logo_path) }}" class="logo-sec img-fluid">
+            </div>
+            <ul class="sidebar-nav">
+                <li class="{% if request.path == url_for('zone_management.admin_dash') %}active{% endif %}" data-bs-toggle="tooltip" title="Dashboard">
+                    <a href="{{ url_for('zone_management.admin_dash') }}">
+                        <i class="fa fa-tachometer" aria-hidden="true"></i><span>Dashboard</span>
+                    </a>
+                </li>
+                <li class="{% if request.path == url_for('zone_management.add_zone') %}active{% endif %}">
+                    <a href="{{ url_for('zone_management.add_zone') }}">
+                        <i class="fa fa-users"></i><span>Zone Management</span>
+                    </a>
+                </li>
+                <li class="has-submenu {% if 'initial_setup' in request.path %}active{% endif %}">
+                    <a href="javascript:void(0);" class="submenu-toggle mb-2">
+                        <i class="fa fa-cogs"></i><span>Initial Setup</span> <i
+                            class="fa fa-angle-down submenu-arrow"></i>
+                    </a>
+                    <ul class="submenu">
+                        <li class="{% if request.path == url_for('initial_setup.upload_logo') %}active{% endif %}">
+                            <a href="{{ url_for('initial_setup.upload_logo') }}">
+                                <i class="fa fa-edit"></i><span>Change Logo </span>
+                            </a>
+                        </li>
+                        <li class="{% if request.path == url_for('initial_setup.altitude_data') %}active{% endif %}">
+                            <a href="{{ url_for('initial_setup.altitude_data') }}">
+                                <i class="fa fa-text-height" aria-hidden="true"></i> <span>Altitude</span>
+                            </a>
+                        </li>
+
+                        <li class="{% if request.path == url_for('initial_setup.add_boost_time') %}active{% endif %}">
+                            <a href="{{ url_for('initial_setup.add_boost_time') }}">
+                                <i class="fa fa-bomb" aria-hidden="true"></i> <span>Boost Time</span>
+                            </a>
+                        </li>
+
+                        <!-- <li>
+                            <p><i class="fa fa-plus" aria-hidden="true"></i><span>Add Headset</span></p>
+                            <div class="form-check form-switch ps-4">
+                                <form id="toggleForm" method="post">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <div class="toggle-container">
+                                        {% if headdata|length > 0 %}
+                                         Loop to display existing toggles 
+                                        {% for head in headdata %}
+                                        <span id="status-{{ head.id }}">&ensp;{{ "Available" if head.id else "Deleted"
+                                            }}</span>
+                                        <label class="toggle ms-2">
+                                             Unique id for each toggle 
+                                            <input type="checkbox" class="toggle-button" data-id="{{ head.id }}" {% if
+                                                head.id %}checked{% endif %}>
+                                            <span class="slider"></span>
+                                        </label>
+
+                                        {% endfor %}
+                                        {% else %}
+                                         Display default toggle for new data 
+                                        <span id="status-new">Unavailable </span>
+                                        <label class="toggle ms-2">
+                                            <input type="checkbox" class="toggle-button" data-id="" id="new-toggle">
+                                            <span class="slider"></span>
+                                        </label>
+
+                                        {% endif %}
+                                    </div>
+                                </form>
+                            </div>
+                        </li> -->
+                    </ul>
+                </li>
+                <li class="{% if request.path == url_for('zone_management.headset') %}active{% endif %}">
+                    <a href="{{ url_for('zone_management.headset') }}" class="mt-0">
+                        <i class="fa fa-object-group"></i><span>Zone Control Panel</span>
+                    </a>
+                </li>
+            </ul>
+
+        </aside>
+
+        <div id="navbar-wrapper">
+            <nav class="cus-navbar">
+                <div class="container-fluid">
+                    <div class="row align-items-center">
+                        <div class="col-lg-8 col-md-8 col-12">
+                            <div class="navbar-header">
+                                <a href="#" class="navbar-brand" id="sidebar-toggle">
+                                    <!-- <i class="fa fa-bars"></i> -->
+                                    <i class="fa fa-bars menu-icon"></i></a> 
+                                   <strong style="margin-left: 15px; font-size: 25px;"> Oxygen Enrichment Control </strong>
+                            </div>
+                        </div>
+                        <div class="col-lg-4 col-md-4 col-12">
+                            <div class="profile-sec">
+                                <div class="dropdown profile-img">
+                
+                                    <img id="toggleIconn" src="/static/icons/moon.png" width="30" height="30" style="cursor: pointer; margin-left: 10px;"/>
+                                    
+                                    <!-- <a href="{{ url_for('main.landing_page') }}">
+                                    <button class="btn btn-danger logout-btn">
+                                        <i
+                                            class="fa fa-sign-out"></i> Logout
+                                    </button></a> -->
+                                    
+                                    <form action="{{ url_for('main.landing_page') }}"
+                                       onsubmit="return confirm('Are you sure you want to Logout');"
+                                       style="margin-right: 20px;">
+                                       <button type="submit" class="btn btn-danger logout-btn">
+                                        <i class="fa fa-sign-out"></i> Logout
+                                    </button>
+                                    </form>
+
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </nav>
+        </div>
+
+        {% block body %} {% endblock body %}
+
+        <div class="overlapbg"></div>
+    </div>
+
+    <script>
+        $(document).ready(function () {
+            $(".submenu-toggle").click(function (event) {
+                event.preventDefault(); // Prevent default link behavior
+
+                var parentLi = $(this).parent(); // Get parent <li>
+                var submenu = parentLi.find(".submenu"); // Get submenu inside this <li>
+
+                if (!parentLi.hasClass("active")) {
+                    // Close all other submenus before opening a new one
+                    $(".submenu").slideUp(300);
+                    $(".has-submenu").removeClass("active");
+
+                    // Open the clicked submenu
+                    parentLi.addClass("active");
+                    submenu.stop(true, true).slideDown(300);
+                } else {
+                    // Close the current submenu if it's already open
+                    submenu.stop(true, true).slideUp(300, function () {
+                        parentLi.removeClass("active");
+                    });
+                }
+            });
+
+            // Ensure all submenus are hidden on page load
+            $(".submenu").hide();
+        });
+
+
+        $(document).ready(function () {
+            $(".menu-icon").click(function () {
+                $(this).toggleClass("active");
+                $(this).toggleClass("fa-bars fa-times");
+            });
+        });
+
+        // Light Theme JS
+        function updateTheme() {
+            const isLight = localStorage.getItem("theme") === "white";
+
+            if (isLight) {
+                $("body").addClass("white-bg");
+                $("#toggleIconn").attr("src", "/static/icons/moon.png"); // Light theme = moon icon
+                $("#toggleIconn").attr("title", "Switch to dark theme");
+                //$("#themeText").text("Move to Dark Theme");
+            } else {
+                $("body").removeClass("white-bg");
+                $("#toggleIconn").attr("src", "/static/icons/sun.png"); // Dark theme = sun icon
+                $("#toggleIconn").attr("title", "Switch to light theme");
+                //$("#themeText").text("Move to Light Theme");
+            }
+        }
+
+        // Page load hone par theme set karna
+        updateTheme();
+
+        // Toggle on click
+        $("#toggleIconn").click(function () {
+            $("body").toggleClass("white-bg");
+
+            if ($("body").hasClass("white-bg")) {
+                localStorage.setItem("theme", "white");
+            } else {
+                localStorage.removeItem("theme");
+            }
+
+            // Reload to apply theme change and icon properly
+            setTimeout(function () {
+                location.reload();
+            }, 200); // 0.3 second delay
+        });
+
+    </script>
+</body>
+
+</html>

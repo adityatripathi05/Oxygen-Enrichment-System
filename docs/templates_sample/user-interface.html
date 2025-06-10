@@ -1,0 +1,271 @@
+{% extends 'userheader.html' %}
+{% block title %} Guest Interface {% endblock %}
+{% block body %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<div class="container">
+  <div class="card-box">
+    <div class="row">
+      <div class="col-sm-3">
+
+        <div class="card left-card text-white">
+          <div class="card-body">
+
+            <div class="row">
+              {% for x in zones %}
+
+              <div class="col-lg-12 col-md-6 col-12">
+                <h6>Zone Information</h6>
+                <hr class="new">
+                <p class="room"><strong> Control Type :</strong> {{ x.zone_control_type }} </p>
+                <p class="room">Zone Name : {{ x.zone_name }} </p>
+                <span>Zone Control : </span>
+                <button class="toggle-btn2 {% if x.zone_status %}on{% endif %}" onclick="toggleButton(this, '{{ x.id }}')"
+                  data-zone-id="{{ x.id }}" {% if x.lock_status==1 %} disabled{% endif %}>
+                  {% if x.zone_status %}Active{% else %}Inactive{% endif %}
+                </button>
+                <!-- {% if x.lock_status == 1 %} -->
+                <div id="lock-message-{{ x.id }}" class="disabled-message" style="color: rgb(245, 162, 162); display: {% if x.lock_status == 1 %}block{% else %}none{% endif %};">
+                  This zone has been locked and cannot be access.
+                </div>
+                
+                <!-- <h6 class="disabled-message" style="color: rgb(245, 162, 162);">
+                  This zone has been locked and cannot be access.
+                </h6> -->
+                <!-- {% endif %} -->
+              </div>
+
+              {% endfor %}
+            </div>
+
+            {% for x in zones %}
+            <div class="col-lg-12 col-md-6 col-12 mt-3">
+
+              <!-- <span>Boost Mode Status : </span>
+              <button class="toggle-btn {% if x.boost_mode %}on{% endif %}" onclick="boostmodecontrol(this, {{ x.id }})"
+                {% if x.boost_mode==1 %}disabled{% endif %}>
+                {% if x.boost_mode %}On{% else %}Off{% endif %}
+              </button> -->
+
+              <span>Boost Mode Status : </span>
+              <button 
+                class="toggle-btn {% if x.boost_mode %}on{% else %}off{% endif %}" 
+                onclick="boostmodecontrol(this, '{{ x.id }}')" data-zone-id="{{ x.id }}"
+                {% if x.lock_status == 1 %}disabled{% endif %}
+              >
+                {% if x.boost_mode == 1 %}On{% else %}Off{% endif %}
+              </button>
+
+
+            </div>
+            {% endfor %}
+
+            <hr class="new">
+            
+          </div>
+        </div>
+
+      </div>
+
+      <div class="col-sm-8 mt-4">
+        
+        <div class="card cardimg mt-4">
+          <div class="card-body">
+            <canvas id="altitudeBarChart" width="155" height="100"></canvas>
+          </div>
+        </div>
+      </div>
+      <!-- <div class="col-sm-1 mt-4">
+        <i id="toggleIcon" class="fa fa-moon-o" aria-hidden="true"></i>
+      </div> -->
+    </div>
+  </div>
+</div>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+
+  // Zone Status Update code
+  function toggleButton(button, zoneId) {
+    let status = button.innerText === "Inactive" ? 1 : 0;  // 1 for On, 0 for Off
+
+    // Update button UI
+    if (status === 1) {
+      button.innerText = "Active";
+      button.classList.add("on");
+    } else {
+      button.innerText = "Inactive";
+      button.classList.remove("on");
+    }
+
+    // Log to see what data is being sent
+    console.log('Sending data:', { 'zone_id': zoneId, 'boost_status': status });
+
+    // Send AJAX request to update database
+    fetch("{{ url_for('zone_management.update_status') }}", {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': '{{ csrf_token() }}'  // Ensure CSRF token if required
+      },
+      body: JSON.stringify({ 'zone_id': zoneId, 'status': status })
+    })
+      .then(response => response.json())
+      .then(data => {
+        console.log('Response received:', data);
+        if (!data.success) {
+          alert('Error updating status');
+        }
+      })
+      .catch(error => console.log('Error:', error));
+  }
+
+  // Boostmode control
+  function boostmodecontrol(button, zoneId) {
+ 
+    let status = button.innerText === "Off" ? 1 : 0;  // 1 for On, 0 for Off
+
+    // Update button UI
+    if (status === 1) {
+      button.innerText = "On";
+      button.classList.add("on");
+    } else {
+      button.innerText = "Off";
+      button.classList.remove("on");
+    }
+
+    // Log to see what data is being sent
+    console.log('Sending data:', { 'zone_id': zoneId, 'boost_status': status });
+
+    // Send AJAX request to update database
+    fetch("{{ url_for('zone_management.boost_mode_control') }}", {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': '{{ csrf_token() }}'  // Ensure CSRF token if required
+      },
+      body: JSON.stringify({ 'zone_id': zoneId, 'boost_status': status })
+    })
+      .then(response => response.json())
+      .then(data => {
+        console.log('Response received:', data);
+        if (!data.success) {
+          alert('Error updating status');
+        }
+      })
+      .catch(error => console.log('Error:', error));
+  }
+  //   .catch(error => console.log("Error fetching boost time:", error));
+  // }
+
+
+  // Altitude Barchart Code 
+  const barChartCtx = document.getElementById('altitudeBarChart').getContext('2d');
+  // Minimum and maximum altitude values
+  const minAltitude = 1000;
+  const maxAltitude = 10000;
+  // Get the current altitude value from Flask
+  const currentAltitude = {{ altitudes | tojson }};
+  // Calculate the percentage for the bar chart
+  const altitudePercentage = (currentAltitude - minAltitude) / (maxAltitude - minAltitude) * 100;
+  // Color based on altitude
+  let barColor = 'blue';
+  if (currentAltitude < 4000) {
+    barColor = 'green';
+  } else if (currentAltitude < 7000) {
+    barColor = 'yellow';
+  } else {
+    barColor = 'red';
+  }
+
+  // Create the Bar Chart
+  const altitudeBarChart = new Chart(barChartCtx, {
+    type: 'bar',
+    data: {
+      labels: ['Altitude'], // x-axis label
+      datasets: [{
+        // No label to avoid showing it in the legend
+        data: [altitudePercentage], // Data for the bar
+        backgroundColor: barColor,
+        borderColor: 'black',
+        borderWidth: 1,
+        barThickness: 50
+      }]
+    },
+    options: {
+      responsive: true,
+      scales: {
+        y: {
+          beginAtZero: true,
+          min: 0,
+          max: 100,
+          ticks: {
+            stepSize: 10,
+            // Adjust tick callback to show altitude range if needed
+            callback: function (value) {
+              return Math.round((value / 100) * (maxAltitude - minAltitude) + minAltitude);
+            },
+            color: function (context) {
+              // Change tick label color dynamically
+              const value = context.tick.value;
+              if (value <= 4000) {
+                return 'black';
+              } else if (value <= 7000) {
+                return 'yellow';
+              } else {
+                return 'red';
+              }
+            }
+          }
+        },
+        x: {
+          beginAtZero: true,
+          ticks: {
+            display: false // Hide x-axis ticks
+          },
+          offset: false  //Align left
+        }
+      },
+      plugins: {
+        tooltip: {
+          callbacks: {
+            // Customize the tooltip content to hide the percentage
+            label: function (context) {
+              return ''; // Empty string means no tooltip for the bar value
+            },
+            title: function () {
+              return `Current Altitude:\n${currentAltitude} feet`; // Optional custom tooltip title
+            }
+          }
+        },
+        legend: {
+          display: false // Hide the legend
+        }
+      }
+    }
+  });
+
+
+  //Select Zone Unassigned to Redirect 
+  const urlParams = new URLSearchParams(window.location.search);
+  const selectedZone = urlParams.get("zone_name");
+
+    setInterval(() => {
+      fetch("/check_zone_status", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ zone_name: selectedZone })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (!data.assigned) {
+          alert("Your zone has been unassigned by admin.");
+          window.location.href = "/select_zone";
+        }
+      });
+    }, 2000);
+</script>
+
+
+{% endblock body %}

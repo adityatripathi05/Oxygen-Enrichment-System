@@ -1,0 +1,282 @@
+{% extends 'adminheader.html' %}
+{% block title %}Edit Zone Management{% endblock %}
+{% block body %}
+
+<section id="content-wrapper">
+   <div class="container-fluid">
+      <div class="row">
+         <div class="col-lg-12">
+            <div class="title-header">
+               <h2>Edit Zone Management Details</h2>
+            </div>
+            <hr>
+
+            <div class="card-header">
+               {% include 'partials/flash_messages.html' %}
+              
+            </div>
+
+            <div class="add-list-btn-sec">
+               <a href="{{ url_for('zone_management.add_zone') }}">
+                  <button type="button" class="add-list-btn back-btn">Back</button>
+               </a>
+            </div>
+            <div class="edit-area p-3">
+               <form method="POST" action="{{ url_for('zone_management.edit_zone', zone_id=zone.id) }}" id="zoneEditForm" onsubmit="validateEditForm(event)">
+                  {{ form.hidden_tag() }}
+                  <div class="row">
+                     <div class="col-lg-6 col-md-6 col-12">
+                      
+                        <div class="mb-3">
+                           {{ form.zone_control_type.label(for="controlType")}}
+                           {{ form.zone_control_type(id="controlType", class="form-control")}}
+                        </div>
+                     </div>
+                     <div class="col-lg-6 col-md-6 col-12">
+                        <div class="mb-3">
+                           {{ form.zone_name.label(for="zoneName")}}
+                           {{ form.zone_name(id="zoneName", class="form-control")}}
+                        </div>
+                        
+                     </div>
+                     <div class="col-lg-6 col-md-6 col-12">
+                        <div class="mb-3" id="sensorFields">
+                           {{ form.sensor_ip.label(for="sensorIp") }}
+                           {{ form.sensor_ip(id="sensorIp", class="form-control", placeholder="Enter Zone Name") }}
+                        </div>
+
+                        <input type="hidden" id="initialTimeFieldCount" value="{{ time_pairs|length }}">
+                        <div class="mb-3">
+                           <div id="timerInputs">
+                              {% for start, end in time_pairs %}
+                              <div class="timePair row">
+                                 <div class="col-lg-6 col-md-6 col-12">
+                                    <label for="startTime_{{ loop.index }}">Start Time:</label>
+                                    <input type="time" name="timer_on" value="{{ start }}" class="form-control"
+                                    id="startTime_{{ loop.index }}">
+                                 </div>
+                                 <div class="col-lg-6 col-md-6 col-12">
+                                    <label for="endTime_{{ loop.index }}">End Time:</label>
+                                    <input type="time" name="timer_off" value="{{ end }}" class="form-control"
+                                    id="endTime_{{ loop.index }}">
+                                 </div>
+                                 <button type="button" class="btn btn-danger btn-sm"
+                                    onclick="removeSpecificTimeFields(this)">
+                                    <span class="cros">&times;</span> <!-- Cross icon -->
+                                 </button>
+                              </div>
+                              {% endfor %}
+                           </div>
+                        
+                           <div id="addTimeButtonContainer" style="display:none;">
+                              <button type="button" class="btn btn-secondary w-auto" onclick="addTimeFields()">Add Time</button>
+                           </div>
+                        </div>
+                     </div>
+                     <div class="col-lg-6 col-md-6 col-12">
+                        <div class="mb-3 d-flex mt-2">
+                           <!-- {{ form.submit( class='btn btn-primary w-auto h-auto m-2')}} -->
+                           <button type="submit" class='btn btn-primary w-auto h-auto m-2'>Update</button>
+                           
+                           <a href="{{ url_for('zone_management.add_zone') }}">
+                              <button type="button" class="btn btn-danger w-auto h-auto m-2">Back</button>
+                            </a>
+
+                        </div>
+                     </div>
+                  </div>
+               </form>
+
+            </div>
+         </div>
+      </div>
+   </div>
+</section>
+<div class="overlapbg"></div>
+</div>
+
+<script>
+   var controlType = document.getElementById("controlType").value;
+   document.getElementById("sensorFields").style.display = controlType === "Sensor" ? "block" : "none";
+   document.getElementById("timerInputs").style.display = controlType === "Timer" ? "block" : "none";
+   var timeFieldCount = parseInt(document.getElementById('initialTimeFieldCount').value);
+   // Function to add new time fields
+   function addTimeFields() {
+   var timerInputs = document.getElementById("timerInputs");
+   var timePairs = document.getElementsByClassName("timePair");
+
+   if (timePairs.length >= 5) {
+      alert("You can add a maximum of 5 time slots.");
+      return; // function yahi ruk jayega, aage nahi chalega
+   }
+
+   timeFieldCount++;
+   var newFields = `
+      <div class="timePair row">
+         <div class="col-lg-6 col-md-6 col-12">
+            <label for="startTime_${timeFieldCount}">Start Time:</label>
+            <input type="time" name="timer_on" class="form-control" id="startTime_${timeFieldCount}">
+         </div>
+         <div class="col-lg-6 col-md-6 col-12">
+            <label for="endTime_${timeFieldCount}">End Time:</label>
+            <input type="time" name="timer_off" class="form-control" id="endTime_${timeFieldCount}">
+         </div>
+         <button type="button" class="btn btn-danger btn-sm" onclick="removeSpecificTimeFields(this)">
+            <span class="cros">&times;</span>
+         </button>
+      </div>
+   `;
+   timerInputs.insertAdjacentHTML('beforeend', newFields);
+
+   // Check again after adding
+   if (timePairs.length + 1 >= 5) {
+      document.getElementById("addTimeButton").disabled = true;
+      document.getElementById("maxLimitMessage").style.display = "block";
+   }
+}
+   
+   // Function to remove a specific time pair
+   function removeSpecificTimeFields(button) {
+      var timePair = button.parentElement;  // Get the parent div of the clicked button
+      timePair.remove();  // Remove the specific time pair
+   }
+   // Optional: Function to remove the last time pair (if needed)
+   function removeTimeFields() {
+      var timerInputs = document.getElementById("timerInputs");
+      var timePairs = document.getElementsByClassName("timePair");
+      if (timePairs.length > 1) { // Ensure that at least one pair remains
+         timerInputs.removeChild(timePairs[timePairs.length - 1]); // Remove the last time pair div
+      }
+   }
+
+
+   // Function to check control type and show/hide Add Time button
+   function updateFormFields() {
+      var controlType = document.getElementById("controlType").value;
+      document.getElementById("sensorFields").style.display = controlType === "Sensor" ? "block" : "none";
+      document.getElementById("timerInputs").style.display = controlType === "Timer" ? "block" : "none";
+      document.getElementById("addTimeButtonContainer").style.display = controlType === "Timer" ? "block" : "none";
+   }
+   document.getElementById("controlType").addEventListener("change", updateFormFields);
+   window.onload = function () {
+      updateFormFields();  // Call this function to set the initial state of the form fields
+   };
+
+   // ✅ IP Address Validation Function
+   function isValidIpAddress(ip) {
+      const ipRegex = /^(192\.168\.\d{1,3}\.\d{1,3})$/;
+      if (!ipRegex.test(ip)) {
+         return false;
+      }
+      const segments = ip.split('.');
+      for (let i = 0; i < segments.length; i++) {
+         if (parseInt(segments[i]) > 255) {
+            return false;
+         }
+      }
+      return true;
+   }
+
+// Convert time string (HH:MM) to minutes
+   function timeToMinutes(time) {
+      const [hours, minutes] = time.split(':').map(Number);
+      return hours * 60 + minutes;
+   }
+
+   // Check overlapping of two time ranges (handles cross-midnight)
+   function isOverlap(start1, end1, start2, end2) {
+      const s1 = timeToMinutes(start1);
+      const e1 = timeToMinutes(end1);
+      const s2 = timeToMinutes(start2);
+      const e2 = timeToMinutes(end2);
+
+      // Range1 splitting if cross-midnight
+      const range1 = e1 > s1 ? [[s1, e1]] : [[s1, 1440], [0, e1]];
+      const range2 = e2 > s2 ? [[s2, e2]] : [[s2, 1440], [0, e2]];
+
+      // Check overlap between both ranges
+      for (const [rs1, re1] of range1) {
+         for (const [rs2, re2] of range2) {
+            if (rs1 < re2 && rs2 < re1) {
+               return true;
+            }
+         }
+      }
+      return false;
+   }
+
+   // ✅ Final form validation function (on submit)
+   function validateEditForm(event) {
+      event.preventDefault();
+      const controlType = document.getElementById("controlType").value;
+      let errors = [];
+
+      if (!controlType) {
+         errors.push("Please select a control type (Sensor or Timer).");
+      } else if (controlType === "Timer") {
+         const timerOnInputs = document.querySelectorAll('input[name="timer_on"]');
+         const timerOffInputs = document.querySelectorAll('input[name="timer_off"]');
+
+         for (let i = 0; i < timerOnInputs.length; i++) {
+            const startTime = timerOnInputs[i].value;
+            const endTime = timerOffInputs[i].value;
+
+            if (!startTime || !endTime) {
+               errors.push(`Start and End times are required for Timer entry ${i + 1}.`);
+            } else if (startTime === endTime) {
+               errors.push(`Start time and End time cannot be the same for Timer entry ${i + 1}.`);
+            }
+
+            // ✅ Check: End time of this pair should not match start time of any other pair
+            for (let j = 0; j < timerOnInputs.length; j++) {
+               if (i !== j) {
+                  const otherStartTime = timerOnInputs[j].value;
+                  if (endTime === otherStartTime) {
+                     errors.push(`End time of Timer entry ${i + 1} cannot be the same as Start time of Timer entry ${j + 1}.`);
+                  }
+               }
+            }
+         }
+
+         // ✅ New Overlapping Validation Here
+         for (let i = 0; i < timerOnInputs.length; i++) {
+            const start1 = timerOnInputs[i].value;
+            const end1 = timerOffInputs[i].value;
+
+            if (!start1 || !end1) continue;
+
+            for (let j = i + 1; j < timerOnInputs.length; j++) {
+               const start2 = timerOnInputs[j].value;
+               const end2 = timerOffInputs[j].value;
+
+               if (!start2 || !end2) continue;
+
+               if (isOverlap(start1, end1, start2, end2)) {
+                  errors.push(`Timer entry ${i + 1} overlaps with Timer entry ${j + 1}.`);
+               }
+            }
+         }
+
+      }
+
+      else if (controlType === "Sensor") {
+         const sensorIp = document.getElementById("sensorIp").value;
+         if (!sensorIp) {
+            errors.push("Sensor IP is required.");
+         } else if (!isValidIpAddress(sensorIp)) {
+            errors.push("Invalid Sensor IP. Format should be 192.168.x.x and values 0-255.");
+         }
+      }
+
+      if (errors.length > 0) {
+         alert(errors.join("\n"));
+         return false;
+      }
+
+      // Agar sab sahi to form submit
+      document.getElementById("zoneEditForm").submit();
+   }
+
+</script>
+
+{% endblock body %}
